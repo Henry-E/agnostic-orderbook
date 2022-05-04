@@ -3,8 +3,8 @@ use crate::{
     error::AoError,
     processor::new_order,
     state::{Event, EventQueue, SelfTradeBehavior, Side},
-    utils::{fp32_div, fp32_mul},
 };
+use bonfida_utils::fp_math::{fp32_div, fp32_mul};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{account_info::AccountInfo, msg, program_error::ProgramError};
 
@@ -72,7 +72,7 @@ impl<'ob> OrderBookState<'ob> {
             .map(|h| self.bids.get_node(h).unwrap().as_leaf().unwrap().price());
         let best_ask_price = self
             .asks
-            .find_max()
+            .find_min()
             .map(|h| self.asks.get_node(h).unwrap().as_leaf().unwrap().price());
         (best_bid_price, best_ask_price)
     }
@@ -147,15 +147,17 @@ impl<'ob> OrderBookState<'ob> {
             }
 
             let offer_size = best_bo_ref.base_quantity;
-            let base_trade_qty = offer_size
-                .min(base_qty_remaining)
-                .min(fp32_div(quote_qty_remaining, best_bo_ref.price()));
+            let base_trade_qty = offer_size.min(base_qty_remaining).min(
+                fp32_div(quote_qty_remaining, best_bo_ref.price())
+                    .ok_or(AoError::NumericalOverflow)?,
+            );
 
             if base_trade_qty == 0 {
                 break;
             }
 
-            let quote_maker_qty = fp32_mul(base_trade_qty, trade_price);
+            let quote_maker_qty =
+                fp32_mul(base_trade_qty, trade_price).ok_or(AoError::NumericalOverflow)?;
 
             if quote_maker_qty == 0 {
                 break;
@@ -260,7 +262,7 @@ impl<'ob> OrderBookState<'ob> {
         }
 
         let base_qty_to_post = std::cmp::min(
-            fp32_div(quote_qty_remaining, limit_price),
+            fp32_div(quote_qty_remaining, limit_price).ok_or(AoError::NumericalOverflow)?,
             base_qty_remaining,
         );
 
@@ -308,7 +310,8 @@ impl<'ob> OrderBookState<'ob> {
             insert_result.unwrap();
         }
         base_qty_remaining -= base_qty_to_post;
-        quote_qty_remaining -= fp32_mul(base_qty_to_post, limit_price);
+        quote_qty_remaining -=
+            fp32_mul(base_qty_to_post, limit_price).ok_or(AoError::NumericalOverflow)?;
         Ok(OrderSummary {
             posted_order_id: Some(new_leaf_order_id),
             total_base_qty: max_base_qty - base_qty_remaining,
