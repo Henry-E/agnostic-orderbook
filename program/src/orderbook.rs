@@ -110,6 +110,11 @@ impl<'ob> OrderBookState<'ob> {
             mut match_limit,
         } = params;
 
+        if max_quote_qty != u64::MAX {
+            msg!("We are entirely ignoring the max_quote_qty variable because it doesn't apply to posting orders");
+            return Err(AoError::NumericalOverflow);
+        }
+
         let mut base_qty_remaining = max_base_qty;
         let mut quote_qty_remaining = max_quote_qty;
 
@@ -261,10 +266,17 @@ impl<'ob> OrderBookState<'ob> {
             match_limit -= 1;
         }
 
-        let base_qty_to_post = std::cmp::min(
-            fp32_div(quote_qty_remaining, limit_price).ok_or(AoError::NumericalOverflow)?,
-            base_qty_remaining,
-        );
+        // AOB FP32 does weird thing with rounding etc, so we're avoiding using quote_qty calcs entirely
+        let base_qty_to_post = base_qty_remaining;
+        // let base_qty_to_post = std::cmp::min(
+        //     fp32_div(quote_qty_remaining, limit_price).ok_or(AoError::NumericalOverflow)?,
+        //     base_qty_remaining,
+        // );
+        // msg!("u64::max as fp32: {}", (quote_qty_remaining as u128) << 32);
+        // msg!("limit price in fp32: {}", limit_price);
+        // msg!("divided values, before going back to u64: {}", ((quote_qty_remaining as u128) << 32).checked_div(limit_price as u128).unwrap());
+        // msg!("what happens when we try from u128 to u64?: {}", u64::try_from(((quote_qty_remaining as u128) << 32).checked_div(limit_price as u128).unwrap()).unwrap());
+        // msg!("base_qty_to_post: {}", base_qty_to_post);
 
         // We allow CROSSED orders to still be processed because we don't care if the prices cross before matching
         if !post_allowed || base_qty_to_post < min_base_order_size {

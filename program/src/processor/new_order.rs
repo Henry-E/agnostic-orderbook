@@ -19,7 +19,7 @@ use crate::{
     utils::{check_account_key, check_account_owner, check_signer},
 };
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize, Debug)]
 /**
 The required arguments for a new_order instruction.
 */

@@ -64,7 +64,7 @@ impl Default for Side {
     fn default() -> Self { Side::Bid }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq, FromPrimitive, BorshSize)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq, FromPrimitive, BorshSize, Debug)]
 /// Describes what happens when two order with identical callback informations are matched together
 pub enum SelfTradeBehavior {
     /// The orders are matched together
