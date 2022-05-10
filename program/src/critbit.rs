@@ -967,19 +967,36 @@ impl CallbackInfo for Pubkey {
 
 impl<'slab> Slab<'slab> {
     /// Get a price ascending or price descending iterator over all the Slab's orders
-    pub fn into_iter(self, price_ascending: bool) -> impl Iterator<Item = LeafNode> + 'slab {
+    pub fn into_iter(self, price_ascending: bool) -> SlabIterator<'slab> {
         SlabIterator {
             search_stack: self.root().iter().copied().collect(),
             slab: self,
             ascending: price_ascending,
         }
     }
+
+    /// Resume a serialized iterator
+    pub fn resume_iter(
+        self,
+        price_ascending: bool,
+        search_stack: &Vec<u32>,
+    ) -> SlabIterator<'slab> {
+        SlabIterator {
+            search_stack: search_stack.clone(),
+            slab: self,
+            ascending: price_ascending,
+        }
+    }
 }
 
-struct SlabIterator<'slab> {
-    slab: Slab<'slab>,
-    search_stack: Vec<u32>,
-    ascending: bool,
+/// slab iterator offers direct access to it's members
+pub struct SlabIterator<'slab> {
+    /// order book side iterated over
+    pub slab: Slab<'slab>,
+    /// stack used to record branches during depth traversal
+    pub search_stack: Vec<u32>,
+    /// ascending for ask, descending for bids
+    pub ascending: bool,
 }
 
 impl<'slab> Iterator for SlabIterator<'slab> {
