@@ -979,10 +979,10 @@ impl<'slab> Slab<'slab> {
     pub fn resume_iter(
         self,
         price_ascending: bool,
-        search_stack: &Vec<u32>,
+        search_stack: &[u32],
     ) -> SlabIterator<'slab> {
         SlabIterator {
-            search_stack: search_stack.clone(),
+            search_stack: search_stack.to_owned(),
             slab: self,
             ascending: price_ascending,
         }
