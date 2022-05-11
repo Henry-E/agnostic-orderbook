@@ -976,11 +976,7 @@ impl<'slab> Slab<'slab> {
     }
 
     /// Resume a serialized iterator
-    pub fn resume_iter(
-        self,
-        price_ascending: bool,
-        search_stack: &[u32],
-    ) -> SlabIterator<'slab> {
+    pub fn resume_iter(self, price_ascending: bool, search_stack: &[u32]) -> SlabIterator<'slab> {
         SlabIterator {
             search_stack: search_stack.to_owned(),
             slab: self,

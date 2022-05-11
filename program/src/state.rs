@@ -61,7 +61,9 @@ impl Side {
 }
 
 impl Default for Side {
-    fn default() -> Self { Side::Bid }
+    fn default() -> Self {
+        Side::Bid
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq, FromPrimitive, BorshSize, Debug)]
@@ -266,7 +268,7 @@ impl EventQueueHeader {
         }
     }
 
-    /// Check that the account tag is correct for event queue 
+    /// Check that the account tag is correct for event queue
     pub fn check(self) -> Result<Self, ProgramError> {
         if self.tag != AccountTag::EventQueue {
             return Err(ProgramError::InvalidAccountData);

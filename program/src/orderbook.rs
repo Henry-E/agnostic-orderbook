@@ -332,7 +332,7 @@ impl<'ob> OrderBookState<'ob> {
         })
     }
 
-    /// 
+    ///
     pub fn is_empty(&self) -> bool {
         self.asks.root().is_none() && self.bids.root().is_none()
     }

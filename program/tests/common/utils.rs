@@ -1,5 +1,5 @@
 use agnostic_orderbook::instruction::create_market;
-use agnostic_orderbook::state::{Event, REGISTER_SIZE, EVENT_QUEUE_HEADER_LEN};
+use agnostic_orderbook::state::{Event, EVENT_QUEUE_HEADER_LEN, REGISTER_SIZE};
 use solana_program::instruction::Instruction;
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::create_account;
