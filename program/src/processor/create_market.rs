@@ -1,9 +1,13 @@
 //! Create and initialize a new orderbook market
-use bonfida_utils::{BorshSize, InstructionsAccount};
+use bonfida_utils::{
+    checks::check_rent_exempt,
+    {BorshSize, InstructionsAccount},
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
@@ -98,10 +102,14 @@ pub fn process<'a, 'b: 'a>(
         cranker_reward,
     } = params;
 
-    check_unitialized(accounts.event_queue)?;
-    check_unitialized(accounts.bids)?;
-    check_unitialized(accounts.asks)?;
-    check_unitialized(accounts.market)?;
+    check_initialization(&accounts)?;
+    check_rent(&accounts)?;
+
+    if min_base_order_size == 0 {
+        msg!("min_base_order_size must be > 0");
+        return Err(ProgramError::InvalidArgument);
+    }
+
     EventQueue::check_buffer_size(accounts.event_queue, params.callback_info_len)?;
 
     let mut market_state = MarketState::get_unchecked(accounts.market);
@@ -132,6 +140,24 @@ pub fn process<'a, 'b: 'a>(
         *accounts.market.key,
         callback_info_len as usize,
     );
+
+    Ok(())
+}
+
+fn check_initialization(accounts: &Accounts<AccountInfo>) -> ProgramResult {
+    check_unitialized(accounts.event_queue)?;
+    check_unitialized(accounts.bids)?;
+    check_unitialized(accounts.asks)?;
+    check_unitialized(accounts.market)?;
+
+    Ok(())
+}
+
+fn check_rent(accounts: &Accounts<AccountInfo>) -> ProgramResult {
+    check_rent_exempt(accounts.asks)?;
+    check_rent_exempt(accounts.bids)?;
+    check_rent_exempt(accounts.event_queue)?;
+    check_rent_exempt(accounts.market)?;
 
     Ok(())
 }
