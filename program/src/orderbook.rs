@@ -120,151 +120,151 @@ impl<'ob> OrderBookState<'ob> {
 
         // New bid
         // let mut crossed = true;
-        let callback_id_len = self.callback_id_len;
-        loop {
-            if match_limit == 0 {
-                break;
-            }
-            let best_bo_h = match self.find_bbo(side.opposite()) {
-                None => {
-                    // crossed = false;
-                    break;
-                }
-                Some(h) => h,
-            };
+        // let callback_id_len = self.callback_id_len;
+        // loop {
+        //     if match_limit == 0 {
+        //         break;
+        //     }
+        //     let best_bo_h = match self.find_bbo(side.opposite()) {
+        //         None => {
+        //             // crossed = false;
+        //             break;
+        //         }
+        //         Some(h) => h,
+        //     };
 
-            let mut best_bo_ref = self
-                .get_tree(side.opposite())
-                .get_node(best_bo_h)
-                .unwrap()
-                .as_leaf()
-                .unwrap()
-                .to_owned();
+        //     let mut best_bo_ref = self
+        //         .get_tree(side.opposite())
+        //         .get_node(best_bo_h)
+        //         .unwrap()
+        //         .as_leaf()
+        //         .unwrap()
+        //         .to_owned();
 
-            let trade_price = best_bo_ref.price();
-            // crossed = match side {
-            //     Side::Bid => limit_price >= trade_price,
-            //     Side::Ask => limit_price <= trade_price,
-            // };
+        //     let trade_price = best_bo_ref.price();
+        //     // crossed = match side {
+        //     //     Side::Bid => limit_price >= trade_price,
+        //     //     Side::Ask => limit_price <= trade_price,
+        //     // };
 
-            if post_only {
-                break;
-            }
+        //     if post_only {
+        //         break;
+        //     }
 
-            let offer_size = best_bo_ref.base_quantity;
-            let base_trade_qty = offer_size.min(base_qty_remaining).min(
-                fp32_div(quote_qty_remaining, best_bo_ref.price())
-                    .ok_or(AoError::NumericalOverflow)?,
-            );
+        //     let offer_size = best_bo_ref.base_quantity;
+        //     let base_trade_qty = offer_size.min(base_qty_remaining).min(
+        //         fp32_div(quote_qty_remaining, best_bo_ref.price())
+        //             .ok_or(AoError::NumericalOverflow)?,
+        //     );
 
-            if base_trade_qty == 0 {
-                break;
-            }
+        //     if base_trade_qty == 0 {
+        //         break;
+        //     }
 
-            let quote_maker_qty =
-                fp32_mul(base_trade_qty, trade_price).ok_or(AoError::NumericalOverflow)?;
+        //     let quote_maker_qty =
+        //         fp32_mul(base_trade_qty, trade_price).ok_or(AoError::NumericalOverflow)?;
 
-            if quote_maker_qty == 0 {
-                break;
-            }
+        //     if quote_maker_qty == 0 {
+        //         break;
+        //     }
 
-            // The decrement take case can be handled by the caller program on event consumption, so no special logic
-            // is needed for it.
-            if self_trade_behavior != SelfTradeBehavior::DecrementTake {
-                let order_would_self_trade = &callback_info[..callback_id_len]
-                    == (&self
-                        .get_tree(side.opposite())
-                        .get_callback_info(best_bo_ref.callback_info_pt as usize)[..callback_id_len]
-                        as &[u8]);
-                if order_would_self_trade {
-                    let best_offer_id = best_bo_ref.order_id();
-                    let cancelled_provide_base_qty;
+        //     // The decrement take case can be handled by the caller program on event consumption, so no special logic
+        //     // is needed for it.
+        //     if self_trade_behavior != SelfTradeBehavior::DecrementTake {
+        //         let order_would_self_trade = &callback_info[..callback_id_len]
+        //             == (&self
+        //                 .get_tree(side.opposite())
+        //                 .get_callback_info(best_bo_ref.callback_info_pt as usize)[..callback_id_len]
+        //                 as &[u8]);
+        //         if order_would_self_trade {
+        //             let best_offer_id = best_bo_ref.order_id();
+        //             let cancelled_provide_base_qty;
 
-                    match self_trade_behavior {
-                        SelfTradeBehavior::CancelProvide => {
-                            cancelled_provide_base_qty =
-                                std::cmp::min(base_qty_remaining, best_bo_ref.base_quantity);
-                        }
-                        SelfTradeBehavior::AbortTransaction => return Err(AoError::WouldSelfTrade),
-                        SelfTradeBehavior::DecrementTake => unreachable!(),
-                    };
+        //             match self_trade_behavior {
+        //                 SelfTradeBehavior::CancelProvide => {
+        //                     cancelled_provide_base_qty =
+        //                         std::cmp::min(base_qty_remaining, best_bo_ref.base_quantity);
+        //                 }
+        //                 SelfTradeBehavior::AbortTransaction => return Err(AoError::WouldSelfTrade),
+        //                 SelfTradeBehavior::DecrementTake => unreachable!(),
+        //             };
 
-                    let remaining_provide_base_qty =
-                        best_bo_ref.base_quantity - cancelled_provide_base_qty;
-                    let delete = remaining_provide_base_qty == 0;
-                    let provide_out = Event::Out {
-                        side: side.opposite(),
-                        delete,
-                        order_id: best_offer_id,
-                        base_size: cancelled_provide_base_qty,
-                        callback_info: self
-                            .get_tree(side.opposite())
-                            .get_callback_info(best_bo_ref.callback_info_pt as usize)
-                            .to_owned(),
-                    };
-                    event_queue
-                        .push_back(provide_out)
-                        .map_err(|_| AoError::EventQueueFull)?;
-                    if delete {
-                        self.get_tree(side.opposite())
-                            .remove_by_key(best_offer_id)
-                            .unwrap();
-                    } else {
-                        best_bo_ref.set_base_quantity(remaining_provide_base_qty);
-                        self.get_tree(side.opposite())
-                            .write_node(&Node::Leaf(best_bo_ref), best_bo_h);
-                    }
+        //             let remaining_provide_base_qty =
+        //                 best_bo_ref.base_quantity - cancelled_provide_base_qty;
+        //             let delete = remaining_provide_base_qty == 0;
+        //             let provide_out = Event::Out {
+        //                 side: side.opposite(),
+        //                 delete,
+        //                 order_id: best_offer_id,
+        //                 base_size: cancelled_provide_base_qty,
+        //                 callback_info: self
+        //                     .get_tree(side.opposite())
+        //                     .get_callback_info(best_bo_ref.callback_info_pt as usize)
+        //                     .to_owned(),
+        //             };
+        //             event_queue
+        //                 .push_back(provide_out)
+        //                 .map_err(|_| AoError::EventQueueFull)?;
+        //             if delete {
+        //                 self.get_tree(side.opposite())
+        //                     .remove_by_key(best_offer_id)
+        //                     .unwrap();
+        //             } else {
+        //                 best_bo_ref.set_base_quantity(remaining_provide_base_qty);
+        //                 self.get_tree(side.opposite())
+        //                     .write_node(&Node::Leaf(best_bo_ref), best_bo_h);
+        //             }
 
-                    continue;
-                }
-            }
+        //             continue;
+        //         }
+        //     }
 
-            let maker_fill = Event::Fill {
-                taker_side: side,
-                maker_callback_info: self
-                    .get_tree(side.opposite())
-                    .get_callback_info(best_bo_ref.callback_info_pt as usize)
-                    .to_owned(),
-                taker_callback_info: callback_info.clone(),
-                maker_order_id: best_bo_ref.order_id(),
-                quote_size: quote_maker_qty,
-                base_size: base_trade_qty,
-            };
-            event_queue
-                .push_back(maker_fill)
-                .map_err(|_| AoError::EventQueueFull)?;
+        //     let maker_fill = Event::Fill {
+        //         taker_side: side,
+        //         maker_callback_info: self
+        //             .get_tree(side.opposite())
+        //             .get_callback_info(best_bo_ref.callback_info_pt as usize)
+        //             .to_owned(),
+        //         taker_callback_info: callback_info.clone(),
+        //         maker_order_id: best_bo_ref.order_id(),
+        //         quote_size: quote_maker_qty,
+        //         base_size: base_trade_qty,
+        //     };
+        //     event_queue
+        //         .push_back(maker_fill)
+        //         .map_err(|_| AoError::EventQueueFull)?;
 
-            best_bo_ref.set_base_quantity(best_bo_ref.base_quantity - base_trade_qty);
-            base_qty_remaining -= base_trade_qty;
-            quote_qty_remaining -= quote_maker_qty;
+        //     best_bo_ref.set_base_quantity(best_bo_ref.base_quantity - base_trade_qty);
+        //     base_qty_remaining -= base_trade_qty;
+        //     quote_qty_remaining -= quote_maker_qty;
 
-            if best_bo_ref.base_quantity < min_base_order_size {
-                let best_offer_id = best_bo_ref.order_id();
-                let cur_side = side.opposite();
-                let out_event = Event::Out {
-                    side: cur_side,
-                    order_id: best_offer_id,
-                    base_size: best_bo_ref.base_quantity,
-                    callback_info: self
-                        .get_tree(side.opposite())
-                        .get_callback_info(best_bo_ref.callback_info_pt as usize)
-                        .to_owned(),
-                    delete: true,
-                };
+        //     if best_bo_ref.base_quantity < min_base_order_size {
+        //         let best_offer_id = best_bo_ref.order_id();
+        //         let cur_side = side.opposite();
+        //         let out_event = Event::Out {
+        //             side: cur_side,
+        //             order_id: best_offer_id,
+        //             base_size: best_bo_ref.base_quantity,
+        //             callback_info: self
+        //                 .get_tree(side.opposite())
+        //                 .get_callback_info(best_bo_ref.callback_info_pt as usize)
+        //                 .to_owned(),
+        //             delete: true,
+        //         };
 
-                self.get_tree(cur_side)
-                    .remove_by_key(best_offer_id)
-                    .unwrap();
-                event_queue
-                    .push_back(out_event)
-                    .map_err(|_| AoError::EventQueueFull)?;
-            } else {
-                self.get_tree(side.opposite())
-                    .write_node(&Node::Leaf(best_bo_ref), best_bo_h);
-            }
+        //         self.get_tree(cur_side)
+        //             .remove_by_key(best_offer_id)
+        //             .unwrap();
+        //         event_queue
+        //             .push_back(out_event)
+        //             .map_err(|_| AoError::EventQueueFull)?;
+        //     } else {
+        //         self.get_tree(side.opposite())
+        //             .write_node(&Node::Leaf(best_bo_ref), best_bo_h);
+        //     }
 
-            match_limit -= 1;
-        }
+        //     match_limit -= 1;
+        // }
 
         // AOB FP32 does weird thing with rounding etc, so we're avoiding using quote_qty calcs entirely
         let base_qty_to_post = base_qty_remaining;
